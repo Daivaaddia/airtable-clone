@@ -26,6 +26,14 @@ model Post {
     @@index([name])
 }
 
+model Base {
+    id                       String @id @default(cuid())
+    createdBy   User   @relation(fields: [createdById], references: [id])
+    createdById String
+
+
+}
+
 // Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())
@@ -63,6 +71,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+    Bases         Base[]
 }
 
 model VerificationToken {

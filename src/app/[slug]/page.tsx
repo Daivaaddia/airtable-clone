@@ -1,9 +1,7 @@
-interface Props {
-  params: { slug: string };
-}
+type Params = Promise<{ slug: string[] }>
 
-export default function BasePage({ params }: Props) {
-    const { slug } = params;
+export default async function BasePage({ params }: { params: Params }) {
+    const { slug } = await params;
 
     return (
         <main>

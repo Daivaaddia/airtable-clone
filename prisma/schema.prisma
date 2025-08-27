@@ -28,10 +28,60 @@ model Post {
 
 model Base {
     id                       String @id @default(cuid())
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
+    name    String
+    createdBy                User   @relation(fields: [createdById], references: [id])
+    createdById              String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
+    tables Table[]
+}
 
+model Table {
+    id  String @id @default(cuid())
+    name String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    base    Base @relation(fields: [baseId], references: [id])
+    baseId String  
+
+    columns Column[] 
+    rows Row[]
+
+}
+
+model Column {
+    id        String   @id @default(cuid())
+    name      String
+    type      String
+
+    table     Table    @relation(fields: [tableId], references: [id])  
+    tableId   String
+
+    cells     Cell[]
+}
+
+model Row {
+    id        String   @id @default(cuid())
+
+    table     Table    @relation(fields: [tableId], references: [id])  
+    tableId   String
+
+    cells     Cell[]
+}
+
+model Cell {
+    id        String   @id @default(cuid())
+    rowId        String
+    columnId        String
+
+    value Json
+
+    row Row @relation(fields: [rowId], references: [id]) 
+    column Column @relation(fields: [columnId], references: [id]) 
+
+    @@unique([rowId, columnId])
 }
 
 // Necessary for Next auth
@@ -71,7 +121,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
-    Bases         Base[]
+    bases         Base[]
 }
 
 model VerificationToken {

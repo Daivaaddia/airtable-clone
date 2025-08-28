@@ -16,6 +16,14 @@ export const baseRouter = createTRPCRouter({
         return bases ?? [];
     }),
 
+    getBase: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+        return ctx.db.base.findFirst({
+            where: { id: input.id },
+        });
+    }),
+
     create: protectedProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ ctx, input }) => {

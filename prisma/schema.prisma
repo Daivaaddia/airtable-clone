@@ -32,7 +32,7 @@ model Base {
     createdBy                User   @relation(fields: [createdById], references: [id])
     createdById              String
     createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    lastOpened DateTime @default(now())
 
     tables Table[]
 }

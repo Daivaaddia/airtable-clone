@@ -3,4 +3,5 @@
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --color-maingray: oklch(0.9846 0.0017 247.84);
 }

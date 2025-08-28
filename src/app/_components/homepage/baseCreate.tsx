@@ -2,12 +2,13 @@
 
 import { api } from "~/trpc/react"
 import { useRouter } from 'next/navigation'
+import type { Base } from '@prisma/client'
 
 export function BaseCreate() {
     const router = useRouter();
 
     const createBase = api.base.create.useMutation({
-        onSuccess: async (data: any) => { // TODO: CHANGE TYPE
+        onSuccess: async (data: Base) => { // TODO: CHANGE TYPE
             router.push(`/${data.id}`)        
         },
     });

@@ -3,7 +3,7 @@ import { api } from "~/trpc/react";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { Table, Column, Row, Cell} from '@prisma/client'
-import { CellContext } from "@tanstack/react-table"
+import type { CellContext } from "@tanstack/react-table"
 
 export function Table({ id }: { id: string }) {
     const { data: table, isLoading } = api.table.getTable.useQuery({ id });

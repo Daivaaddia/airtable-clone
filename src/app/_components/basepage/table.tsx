@@ -3,6 +3,7 @@ import { api } from "~/trpc/react";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { Table, Column, Row, Cell} from '@prisma/client'
+import { CellContext } from "@tanstack/react-table"
 
 export function Table({ id }: { id: string }) {
     const { data: table, isLoading } = api.table.getTable.useQuery({ id });
@@ -26,7 +27,7 @@ export function Table({ id }: { id: string }) {
         return table.columns.map((col) => ({
             accessorKey: col.id,
             header: col.name,
-            cell: (props: any) => {
+            cell: (props: CellContext<Row, string>) => {
                 const cellData = JSON.parse(props.getValue())
                 const [localValue, setLocalValue] = useState(cellData.value);
                 const handleCommit = () => {

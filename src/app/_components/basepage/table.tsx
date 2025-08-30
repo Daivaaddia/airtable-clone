@@ -27,7 +27,7 @@ export function Table({ id }: { id: string }) {
         return table.columns.map((col) => ({
             accessorKey: col.id,
             header: col.name,
-            cell: (props: CellContext<Row, string>) => {
+            cell: (props: CellContext<Record<string, string>, string>) => {
                 const cellData = JSON.parse(props.getValue())
                 const [localValue, setLocalValue] = useState(cellData.value);
                 const handleCommit = () => {

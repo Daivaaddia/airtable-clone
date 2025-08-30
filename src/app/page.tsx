@@ -22,7 +22,7 @@ export default async function Home() {
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {bases.map(( base ) => (
               <Link key={base.id} href={`/${base.id}`}>
-                <div className="flex flex-row gap-5 p-5 rounded-md border border-gray-300 bg-white hover:shadow-lg text-left">
+                <div className="flex flex-row gap-5 p-4 rounded-md border border-gray-300 bg-white hover:shadow-lg text-left">
                   <div className="text-2xl rounded-2xl bg-[#3b66a3] flex justify-center items-center text-white aspect-square w-[60px]">
                     {base.name.substring(0, 1).toUpperCase() + base.name.substring(1, 2).toLowerCase() }
                   </div>

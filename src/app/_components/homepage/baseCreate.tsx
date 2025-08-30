@@ -6,10 +6,14 @@ import type { Base } from '@prisma/client'
 
 export function BaseCreate() {
     const router = useRouter();
+    const createDefaultTable = api.table.createDefault.useMutation()
 
     const createBase = api.base.create.useMutation({
-        onSuccess: async (data: Base) => { // TODO: CHANGE TYPE
-            router.push(`/${data.id}`)        
+        onSuccess: async (data: Base) => { 
+            router.push(`/${data.id}`) 
+            createDefaultTable.mutate(
+                { baseId: data.id, name: "Table 1" }
+            )     
         },
     });
     

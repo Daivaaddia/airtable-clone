@@ -5,10 +5,8 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
-const defaultColumns = ["Name", "Notes", "Assignee", "Status", "Attachments", "Attachment Summary"]
+const defaultColumns = ["Name", "Notes", "Number"]
 const DEFAULTROWS = 3
-let columnIds: string[] = []
-let rowIds: string[] = []
 
 export const tableRouter = createTRPCRouter({
     create: protectedProcedure
@@ -23,7 +21,7 @@ export const tableRouter = createTRPCRouter({
     }),
 
     createDefault: protectedProcedure
-    .input(z.object({ baseId: z.string(), name: z.string() }))
+    .input(z.object({ id: z.string().optional(), baseId: z.string(), name: z.string() }))
     .mutation(async ({ ctx, input }) => {
         return await  ctx.db.$transaction(async (tx) => {
             const table = await ctx.db.table.create({
@@ -37,6 +35,7 @@ export const tableRouter = createTRPCRouter({
                 name: colName,
                 order: index,
                 tableId: table.id,
+                type: colName === "Number" ? "NUMBER" : "TEXT"
             }));
 
             await tx.column.createMany({ data: columnData });
@@ -66,6 +65,7 @@ export const tableRouter = createTRPCRouter({
                     rowId: row.id,
                     columnId: col.id,
                     value: "",
+                    type: col.type
                 }))
             );
 
@@ -95,12 +95,32 @@ export const tableRouter = createTRPCRouter({
         });
     }),
 
+    createRow: protectedProcedure
+    .input(z.object({ 
+        row: z.object({ id: z.string().optional(), order: z.number(), tableId: z.string() }),
+        cells: z.array(z.object({ id: z.string().optional(), type: z.string(), value: z.string(), rowId: z.string(), columnId: z.string() }))
+    }))
+    .mutation(async ({ ctx, input}) => {
+        //const rowCount = await ctx.db.row.count({ where: { tableId: input.id } });
+        const row = await ctx.db.row.create({
+            data: {
+                id: input.row.id,
+                order: input.row.order,
+                tableId: input.row.tableId
+            }
+        })
+
+        await ctx.db.cell.createMany({ data: input.cells })
+
+        return row;
+    }),
+
     updateCell: protectedProcedure
     .input(z.object({ id: z.string(), value: z.string() }))
     .mutation(async ({ ctx, input }) => {
-        return ctx.db.cell.update({
+        return ctx.db.cell.updateMany({
             where: { id: input.id },
             data: { value: input.value }
         })
-    })  
+    }),
 });

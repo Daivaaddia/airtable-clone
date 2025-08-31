@@ -10,7 +10,7 @@ function EditableCell({
 }: {
     getValue: () => string;
 }) {
-    const cellData: { id: string, value: string, type: string } = JSON.parse(getValue())
+    const cellData: { id: string, value: string, type: string } = JSON.parse(getValue()) as {id: string; value: string; type: string }
     const cellId = cellData.id
     const initialValue = cellData.value
     
@@ -42,7 +42,7 @@ export function Table({ id }: { id: string }) {
 
     const createRow = api.table.createRow.useMutation({
         onSuccess: async () => {
-            utils.table.getTable.invalidate({ id })
+            await utils.table.getTable.invalidate({ id })
         }
     });
 

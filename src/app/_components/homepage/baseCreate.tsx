@@ -11,7 +11,7 @@ export function BaseCreate() {
     const router = useRouter();
     const createDefaultTable = api.table.createDefault.useMutation({
         onSuccess: async () => {
-            utils.base.getBase.invalidate();
+            await utils.base.getBase.invalidate();
         }
                 
     })

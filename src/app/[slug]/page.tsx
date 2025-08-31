@@ -12,7 +12,7 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
     const utils = api.useUtils()
     const createTable = api.table.createDefault.useMutation({
         onSuccess: async () => {
-            utils.base.getBase.invalidate({ id: slug })
+            await utils.base.getBase.invalidate({ id: slug })
         },
     });
 

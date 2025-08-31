@@ -25,48 +25,57 @@ export const tableRouter = createTRPCRouter({
     createDefault: protectedProcedure
     .input(z.object({ baseId: z.string(), name: z.string() }))
     .mutation(async ({ ctx, input }) => {
-        const table = await ctx.db.table.create({
-            data: {
-                name: input.name,
-                base: { connect: { id: input.baseId } }
-            }
-        });
-
-        let order = 0;
-        defaultColumns.forEach(async (colName: string) => {
-            const col = await ctx.db.column.create({
+        return await  ctx.db.$transaction(async (tx) => {
+            const table = await ctx.db.table.create({
                 data: {
-                    name: colName,
-                    order,
-                    table: { connect: { id: table.id }}
+                    name: input.name,
+                    base: { connect: { id: input.baseId } }
                 }
             });
-            columnIds.push(col.id);
-            order++;
-        })
 
-        for (let i = 0; i < DEFAULTROWS; i++) {
-            const row = await ctx.db.row.create({
-                data: {
+            const columnData = defaultColumns.map((colName, index) => ({
+                name: colName,
+                order: index,
+                tableId: table.id,
+            }));
+
+            await tx.column.createMany({ data: columnData });
+
+            const columns = await tx.column.findMany({
+                where: { tableId: table.id },
+                orderBy: { order: "asc" },
+            });
+
+            let rowData = [];
+            for (let i = 0; i < DEFAULTROWS; i++) {
+                rowData.push({
                     order: i,
-                    table: { connect: { id: table.id }}
-                }
+                    tableId: table.id
+                })
+            }; 
+
+            await tx.row.createMany({ data: rowData });
+
+            const rows = await tx.row.findMany({
+                where: { tableId: table.id },
+                orderBy: { order: "asc" },
             });
-            rowIds.push(row.id);
-        }
-        
-        for (let i = 0; i < defaultColumns.length; i++) {
-            for (let j = 0; j < DEFAULTROWS; j++) {
-                const cell = await ctx.db.cell.create({
-                    data: {
-                        row: { connect: { id: rowIds[j] }},
-                        column: { connect: { id: columnIds[i] }},
-                        value: ""
-                    }
-                });
-            }
-        } 
-        return table
+
+            const cellData = rows.flatMap((row) =>
+                columns.map((col) => ({
+                    rowId: row.id,
+                    columnId: col.id,
+                    value: "",
+                }))
+            );
+
+            await tx.cell.createMany({ data: cellData });
+
+            return table;
+        }, {
+            maxWait: 5000,
+            timeout: 20000,
+        })
     }),
 
     getTable: protectedProcedure

@@ -45,7 +45,7 @@ export const tableRouter = createTRPCRouter({
                 orderBy: { order: "asc" },
             });
 
-            let rowData = [];
+            const rowData = [];
             for (let i = 0; i < DEFAULTROWS; i++) {
                 rowData.push({
                     order: i,

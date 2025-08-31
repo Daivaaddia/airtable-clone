@@ -3,7 +3,6 @@
 import { api } from "~/trpc/react"
 import { useRouter } from 'next/navigation'
 import type { Base } from '@prisma/client'
-import { date } from "zod/v4";
 
 export function BaseCreate() {
 
@@ -11,7 +10,7 @@ export function BaseCreate() {
 
     const router = useRouter();
     const createDefaultTable = api.table.createDefault.useMutation({
-        onSuccess: () => {
+        onSuccess: async () => {
             utils.base.getBase.invalidate();
         }
                 

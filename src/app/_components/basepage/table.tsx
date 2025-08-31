@@ -2,7 +2,7 @@
 import { api } from "~/trpc/react";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
-import type { Cell, Column, Row, Table } from '@prisma/client'
+import type { Cell, Column, Table } from '@prisma/client'
 import { nanoid } from "nanoid";
 
 function EditableCell({
@@ -41,7 +41,7 @@ export function Table({ id }: { id: string }) {
     const utils = api.useUtils()
 
     const createRow = api.table.createRow.useMutation({
-        onSuccess: () => {
+        onSuccess: async () => {
             utils.table.getTable.invalidate({ id })
         }
     });

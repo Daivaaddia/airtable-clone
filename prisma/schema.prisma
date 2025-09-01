@@ -39,6 +39,8 @@ model Table {
     base        Base @relation(fields: [baseId], references: [id], onDelete: Cascade)
     baseId      String  
 
+    sorting     String
+
     columns     Column[] 
     rows        Row[]
 
@@ -46,7 +48,7 @@ model Table {
 
 model Column {
     id        String   @id @default(cuid())
-    name      String
+    name      String 
     
     order     Int
     table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)  
@@ -55,12 +57,15 @@ model Column {
     type      String
 
     cells     Cell[]
+
+    @@unique([tableId, name])
 }
 
 model Row {
     id        String   @id @default(cuid())
 
     order     Int
+    origOrder Int
     table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)  
     tableId   String
 
@@ -70,7 +75,9 @@ model Row {
 model Cell {
     id        String   @id @default(cuid())
     rowId     String
-    columnId  String
+    columnId    String
+
+    columnName  String
 
     value     String
 
@@ -79,7 +86,7 @@ model Cell {
 
     type      String
 
-    @@unique([rowId, columnId])
+    @@unique([rowId, columnName])
 }
 
 // Necessary for Next auth

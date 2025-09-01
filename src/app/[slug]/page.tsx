@@ -51,7 +51,7 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
                 </button>
             </div>
 
-            {activeTable ? <Table id={activeTable} /> : <p></p> }
+            {activeTable ? <Table id={activeTable} key={activeTable} /> : <p></p> }
         </main>
     );
 }

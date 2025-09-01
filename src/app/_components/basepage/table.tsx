@@ -1,16 +1,25 @@
 'use client'
 import { api } from "~/trpc/react";
 import { useReactTable, getCoreRowModel, flexRender } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import type { Row } from "@tanstack/react-table";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cell, Column, Table } from '@prisma/client'
 import { nanoid } from "nanoid";
+import TableSort from "../table/tableSort";
+
+type DataValue = { id: string, value: string, type: string }
+type Data = Record<string, DataValue>
+export type SortRule = {
+  columnName: string;
+  order: "ASC" | "DESC";
+};
 
 function EditableCell({
     getValue,
 }: {
-    getValue: () => string;
+    getValue: () => DataValue;
 }) {
-    const cellData: { id: string, value: string, type: string } = JSON.parse(getValue()) as {id: string; value: string; type: string }
+    const cellData = getValue()
     const cellId = cellData.id
     const initialValue = cellData.value
     
@@ -33,18 +42,114 @@ function EditableCell({
 }
 
 export function Table({ id }: { id: string }) {
-    const { data: table, isLoading } = api.table.getTable.useQuery({ id });
-
-    const [data, setData] = useState<Record<string, string>[]>([])
+    const { data: table, isLoading, refetch } = api.table.getTable.useQuery({ id });
+    const [data, setData] = useState<Data[]>([])
     const [cols, setCols] = useState<Column[]>([])
+    // useState for row IDs to be used in col updates
+    const [rows, setRows] = useState<string[]>([]) 
+
+    const [sortRules, setSortRules] = useState<SortRule[]>([]);
+
+    const [refreshCounter, setRefreshCounter] = useState(0);
+
+    const columns = useMemo(() => {
+        return cols.map((col) => ({
+            accessorKey: col.name,
+            header: col.name,
+            cell: EditableCell,
+            sortingFn: (a: Row<Data>, b: Row<Data>) => {
+                const valA = a.getValue<DataValue>(col.name).value
+                const valB = b.getValue<DataValue>(col.name).value
+                return valA.localeCompare(valB)
+            }
+        }))
+    }, [cols]);
 
     const utils = api.useUtils()
 
     const createRow = api.table.createRow.useMutation({
         onSuccess: async () => {
+            sortRows()
+        },
+    });
+
+    const createCol = api.table.createCol.useMutation({
+        onSuccess: async () => {
             await utils.table.getTable.invalidate({ id })
         }
     });
+
+    const sortTable = api.table.sortTable.useMutation({
+        onSuccess: async () => {
+            await utils.table.getTable.invalidate({ id });
+            await refetch()
+            setRefreshCounter((prev) => prev + 1)
+        }
+    });
+
+    const resetTableOrder = api.table.resetOrder.useMutation({
+        onSuccess: async () => {
+            await utils.table.getTable.invalidate({ id });
+            await refetch()
+        }
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+    // const { data: filteredTable } = api.table.getFilteredTable.useQuery(
+    //     { 
+    //         id,
+    //         filters: [
+    //             { columnName: "Name", operator: "contains", value: "rodney", combineWith: "AND"},
+    //             { columnName: "Name", operator: "contains", value: "w", combineWith: "OR"},
+    //             { columnName: "Notes", operator: "is_empty", value: "", combineWith: "OR"}
+    //         ] 
+
+    //     }
+    // )
+
+    // if (filteredTable) {
+    //     console.log(filteredTable)
+    // }
+    
+
+
+    const initialSortLoaded = useRef(false)
+
+    useEffect(() => {
+        if (!table || initialSortLoaded.current) return;
+
+        if (table.sorting) {
+            const initial = JSON.parse(table.sorting);
+            setSortRules(initial);
+        }
+
+        initialSortLoaded.current = true;
+    }, [table]);
+
+    const sortRows = () => {
+        const sortRulesBackend = sortRules.map(r => ({ columnName: r.columnName, order: r.order }));
+        if (sortRules.length === 0) {
+            resetTableOrder.mutate({ id });
+        } else {
+            sortTable.mutate({ id, columns: sortRulesBackend });
+        }
+    }
+
+    useEffect(() => {
+        if (!initialSortLoaded.current) return;
+
+        sortRows()
+    }, [sortRules]);
 
     useEffect(() => {
         if (!table) {
@@ -52,14 +157,19 @@ export function Table({ id }: { id: string }) {
             return
         }
 
+        const rowIds: string[] = [] 
         const rows = table.rows.map((row) => {
-            const rowObj: Record<string, string> = {};
+            rowIds.push(row.id)
+
+            const rowObj: Data = {};
             row.cells.forEach((cell) => {
-                rowObj[cell.columnId] = JSON.stringify({ id: cell.id, value: cell.value, type: cell.type })
+                rowObj[cell.columnName] = { id: cell.id, value: cell.value, type: cell.type }
             });
             return rowObj;
         });
+
         setData(rows)
+        setRows(rowIds)
     }, [table])
 
     useEffect(() => {
@@ -68,16 +178,98 @@ export function Table({ id }: { id: string }) {
             return
         }
 
-        setCols(table.columns)
+        setCols([...table.columns])
     }, [table])
 
-    const columns = useMemo(() => {
-        return cols.map((col) => ({
-            accessorKey: col.id,
-            header: col.name,
-            cell: EditableCell
+    const handleAddRow = () => {
+        if (!table) return
+
+        const newId = nanoid()
+
+        const newCells: Cell[] = table.columns.map((col) => ({
+            id: nanoid(),
+            columnId: col.id,
+            value: "",
+            rowId: newId,
+            columnName: col.name,
+            type: col.type
         }))
-    }, [cols]);
+
+        const newData: Record<string, DataValue> = {}
+        newCells.forEach((cell) => {
+            newData[cell.columnName] = { id: cell.id, value: cell.value, type: cell.type }
+        });
+
+        setData((prev) => [...prev, newData])
+        setRows((prev) => [...prev, newId])
+
+        const newRow = {
+            id: newId, order: data.length, tableId: id
+        }
+        
+        createRow.mutate({ row: newRow, cells: newCells })
+    }
+
+    const handleAddCol = () => {
+        if (!table) return
+
+        const newId = nanoid()
+
+        const inputName = window.prompt("Enter column name", "Text")?.trim()
+        if (!inputName) return
+        
+        const newCells: Cell[] = []
+        rows.map((rowId) => {
+            newCells.push({
+                id: nanoid(),
+                columnId: newId,
+                value: "",
+                rowId,
+                columnName: inputName,
+                type: "TEXT"
+            })
+        })
+
+        setData((prev) =>
+            prev.map((row, rowIndex) => {
+                const cell = newCells[rowIndex];
+                if (!cell) return {...row}
+
+                return {
+                    ...row,
+                    [inputName]: { id: cell.id, value: cell.value, type: cell.type },
+                };
+            })
+        );
+
+        const newCol: Column = {
+            name: inputName,
+            id: newId,
+            order: cols.length,
+            type: "TEXT",
+            tableId: id
+        }
+
+        setCols((prev) => [...prev, newCol])
+
+        createCol.mutate({ col: newCol, cells: newCells })
+    }
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     const reactTable = useReactTable({
         data,
@@ -87,36 +279,13 @@ export function Table({ id }: { id: string }) {
 
     if (isLoading) return <div>Loading Table...</div>
 
-    const handleAddRow = () => {
-        if (!table) return
-
-        const newId = nanoid()
-
-        const newCells: Cell[] = table.columns.map((col) => ({
-            id: nanoid(),
-            value: "",
-            rowId: newId,
-            columnId: col.id,
-            type: col.type
-        }))
-
-        const newData: Record<string, string> = {}
-        newCells.forEach((cell) => {
-            newData[cell.columnId] = JSON.stringify({ id: cell.id, value: cell.value, type: cell.type })
-        });
-
-        setData((prev) => [...prev, newData])
-
-        const newRow = {
-            id: newId, order: data.length, tableId: id
-        }
-        
-        createRow.mutate({ row: newRow, cells: newCells })
-    }
-
     return (
-        <div className="">
-            <div className="text-lg">{table?.name}</div>
+        <div>
+            <div className="flex flex-row justify-between">
+                <div className="text-lg">{table?.name}</div>
+                <TableSort sortRules={sortRules} setSortRules={setSortRules} cols={cols}/>
+            </div>
+
             <table className="min-w-full border border-gray-400">
                 <thead>
                 {reactTable.getHeaderGroups().map((headerGroup) => (
@@ -137,9 +306,9 @@ export function Table({ id }: { id: string }) {
                     </tr>
                 ))}
                 </thead>
-                <tbody>
-                {reactTable.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
+                <tbody key={refreshCounter}>
+                {reactTable.getRowModel().rows.map((row, index) => (
+                    <tr key={index}>
                     {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="border border-gray-400">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -151,6 +320,9 @@ export function Table({ id }: { id: string }) {
             </table>
             <button onClick={handleAddRow} className="border px-3 py-1.5 cursor-pointer rounded-md bg-[#166ee1] text-white">
                 + Add Row
+            </button>
+            <button onClick={handleAddCol} className="border px-3 py-1.5 cursor-pointer rounded-md bg-[#166ee1] text-white">
+                + Add Col
             </button>
         </div>
     )

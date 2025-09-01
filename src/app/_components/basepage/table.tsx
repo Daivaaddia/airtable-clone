@@ -52,6 +52,39 @@ export function Table({ id }: { id: string }) {
 
     const [refreshCounter, setRefreshCounter] = useState(0);
 
+    function EditableCell({
+        getValue,
+    }: {
+        getValue: () => DataValue;
+    }) {
+        const cellData = getValue()
+        const cellId = cellData.id
+        const initialValue = cellData.value
+        
+        const [localValue, setLocalValue] = useState(initialValue);
+        const updateCell = api.table.updateCell.useMutation({
+            onSuccess: () => {
+                sortRows()
+            }
+        });
+
+        const handleCommit = () => {
+            updateCell.mutate({ id: cellId, value: localValue });
+        };
+
+        return (
+            <input
+                className="w-full px-2 py-1"
+                value={localValue}
+                type={cellData.type === "TEXT" ? "text" : "number"}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleCommit}
+            />
+        );
+    }
+
+
+
     const columns = useMemo(() => {
         return cols.map((col) => ({
             accessorKey: col.name,
@@ -68,7 +101,7 @@ export function Table({ id }: { id: string }) {
     const utils = api.useUtils()
 
     const createRow = api.table.createRow.useMutation({
-        onSuccess: async () => {
+        onSuccess: () => {
             sortRows()
         },
     });

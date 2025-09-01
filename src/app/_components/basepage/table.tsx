@@ -129,7 +129,7 @@ export function Table({ id }: { id: string }) {
         if (!table || initialSortLoaded.current) return;
 
         if (table.sorting) {
-            const initial = JSON.parse(table.sorting);
+            const initial: SortRule[] = JSON.parse(table.sorting) as SortRule[];
             setSortRules(initial);
         }
 

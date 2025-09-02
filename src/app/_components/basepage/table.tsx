@@ -18,7 +18,7 @@ export type SortRule = {
 };
 
 export function Table({ id }: { id: string }) {
-    const { data: table, isLoading, refetch } = api.table.getTable.useQuery({ id });
+    const { data: table, isLoading, isRefetching } = api.table.getTable.useQuery({ id });
     const [data, setData] = useState<Data[]>([])
     const [cols, setCols] = useState<Column[]>([])
     // useState for row IDs to be used in col updates
@@ -254,7 +254,7 @@ export function Table({ id }: { id: string }) {
         getCoreRowModel: getCoreRowModel(),
     });
 
-    if (isLoading) return <div>Loading Table...</div>
+    if (isLoading || isRefetching) return <div>Loading Table...</div>
 
     return (
         <div>

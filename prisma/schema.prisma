@@ -39,7 +39,8 @@ model Table {
     base        Base @relation(fields: [baseId], references: [id], onDelete: Cascade)
     baseId      String  
 
-    sorting     String
+    sorting     String @default("")
+    filtering   String @default("{\"combineWith\":\"AND\",\"conditions\":[]}")
 
     columns     Column[] 
     rows        Row[]

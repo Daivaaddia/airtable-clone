@@ -6,40 +6,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cell, Column, Table } from '@prisma/client'
 import { nanoid } from "nanoid";
 import TableSort from "../table/tableSort";
+import TableFilter, { initialFilter } from "../table/tableFilter";
+import type { FilterGroupInput } from "~/server/api/routers/table";
 
 type DataValue = { id: string, value: string, type: string }
 type Data = Record<string, DataValue>
 export type SortRule = {
-  columnName: string;
-  order: "ASC" | "DESC";
+  columnName: string
+  columnType: "TEXT" | "NUMBER"
+  order: "ASC" | "DESC"
 };
-
-function EditableCell({
-    getValue,
-}: {
-    getValue: () => DataValue;
-}) {
-    const cellData = getValue()
-    const cellId = cellData.id
-    const initialValue = cellData.value
-    
-    const [localValue, setLocalValue] = useState(initialValue);
-    const updateCell = api.table.updateCell.useMutation();
-
-    const handleCommit = () => {
-        updateCell.mutate({ id: cellId, value: localValue });
-    };
-
-    return (
-        <input
-            className="w-full px-2 py-1"
-            value={localValue}
-            type={cellData.type === "TEXT" ? "text" : "number"}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={handleCommit}
-        />
-    );
-}
 
 export function Table({ id }: { id: string }) {
     const { data: table, isLoading, refetch } = api.table.getTable.useQuery({ id });
@@ -47,10 +23,14 @@ export function Table({ id }: { id: string }) {
     const [cols, setCols] = useState<Column[]>([])
     // useState for row IDs to be used in col updates
     const [rows, setRows] = useState<string[]>([]) 
-
     const [sortRules, setSortRules] = useState<SortRule[]>([]);
-
     const [refreshCounter, setRefreshCounter] = useState(0);
+
+    let initFilter = initialFilter
+    if (table && table.filtering) {
+        initFilter = JSON.parse(table.filtering)
+    }
+    const [filters, setFilters] = useState<FilterGroupInput>(initialFilter)
 
     function EditableCell({
         getValue,
@@ -69,7 +49,9 @@ export function Table({ id }: { id: string }) {
         });
 
         const handleCommit = () => {
-            updateCell.mutate({ id: cellId, value: localValue });
+            if (initialValue != localValue) {
+                updateCell.mutate({ id: cellId, value: localValue });
+            }
         };
 
         return (
@@ -82,8 +64,6 @@ export function Table({ id }: { id: string }) {
             />
         );
     }
-
-
 
     const columns = useMemo(() => {
         return cols.map((col) => ({
@@ -115,7 +95,6 @@ export function Table({ id }: { id: string }) {
     const sortTable = api.table.sortTable.useMutation({
         onSuccess: async () => {
             await utils.table.getTable.invalidate({ id });
-            await refetch()
             setRefreshCounter((prev) => prev + 1)
         }
     });
@@ -123,38 +102,15 @@ export function Table({ id }: { id: string }) {
     const resetTableOrder = api.table.resetOrder.useMutation({
         onSuccess: async () => {
             await utils.table.getTable.invalidate({ id });
-            await refetch()
         }
     })
 
-
-
-
-
-
-
-
-
-
-
-
-    // const { data: filteredTable } = api.table.getFilteredTable.useQuery(
-    //     { 
-    //         id,
-    //         filters: [
-    //             { columnName: "Name", operator: "contains", value: "rodney", combineWith: "AND"},
-    //             { columnName: "Name", operator: "contains", value: "w", combineWith: "OR"},
-    //             { columnName: "Notes", operator: "is_empty", value: "", combineWith: "OR"}
-    //         ] 
-
-    //     }
-    // )
-
-    // if (filteredTable) {
-    //     console.log(filteredTable)
-    // }
-    
-
+    const updateTableFilter = api.table.updateTableFilter.useMutation({
+        onSuccess: async () => {
+            await utils.table.getTable.invalidate({ id });
+            setRefreshCounter((prev) => prev + 1)
+        }
+    })
 
     const initialSortLoaded = useRef(false)
 
@@ -169,8 +125,12 @@ export function Table({ id }: { id: string }) {
         initialSortLoaded.current = true;
     }, [table]);
 
+    useEffect(() => {
+        updateTableFilter.mutate({ id, filters: JSON.stringify(filters) })
+    }, [filters])
+
     const sortRows = () => {
-        const sortRulesBackend = sortRules.map(r => ({ columnName: r.columnName, order: r.order }));
+        const sortRulesBackend = sortRules.map(r => ({ columnName: r.columnName, columnType: r.columnType, order: r.order }));
         if (sortRules.length === 0) {
             resetTableOrder.mutate({ id });
         } else {
@@ -288,22 +248,6 @@ export function Table({ id }: { id: string }) {
         createCol.mutate({ col: newCol, cells: newCells })
     }
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const reactTable = useReactTable({
         data,
         columns,
@@ -316,6 +260,7 @@ export function Table({ id }: { id: string }) {
         <div>
             <div className="flex flex-row justify-between">
                 <div className="text-lg">{table?.name}</div>
+                <TableFilter columns={cols} filters={filters} setFilters={setFilters}/>
                 <TableSort sortRules={sortRules} setSortRules={setSortRules} cols={cols}/>
             </div>
 

@@ -6,41 +6,81 @@ import {
 } from "~/server/api/trpc";
 
 const defaultColumns = ["Name", "Notes", "Number"]
-const DEFAULTROWS = 10
+const DEFAULTROWS = 25
 
-const filterInput = z.object({
+const filterCondInput = z.object({
   columnName: z.string(),
   operator: z.enum([
     "is",
-    "is_not",
+    "is not",
     "contains",
-    "not_contains",
-    "is_empty",
-    "is_not_empty"
+    "not contains",
+    "is empty",
+    "is not empty",
+    "gt",
+    "lt"
   ]),
-  value: z.string(),
-  combineWith: z.enum(["AND", "OR"]),
+  value: z.string().optional()
 });
 
-type FilterInput = z.infer<typeof filterInput>
+export type FilterCondInput = z.infer<typeof filterCondInput>
 
-function filterToSql(colAlias: string, filter: FilterInput) {
-  switch (filter.operator) {
+type FilterGroup = {
+  combineWith: "AND" | "OR";
+  conditions: (FilterCondInput | FilterGroup)[];
+};
+
+const filterGroupInput: z.ZodType<FilterGroup> = z.lazy(() =>
+    z.object({
+        combineWith: z.enum(["AND", "OR"]),
+        conditions: z.array(z.union([filterCondInput, filterGroupInput])),
+    })
+);
+
+
+export type FilterGroupInput = z.infer<typeof filterGroupInput>
+
+function filterToSql(colAlias: string, filter: FilterCondInput) {
+    switch (filter.operator) {
     case "is":
-      return `${colAlias}.value = '${filter.value}'`;
-    case "is_not":
-      return `${colAlias}.value <> '${filter.value}'`;
+        return `${colAlias}.value = '${filter.value}'`
+    case "is not":
+        return `${colAlias}.value <> '${filter.value}'`
     case "contains":
-      return `${colAlias}.value ILIKE '%${filter.value}%'`;
-    case "not_contains":
-      return `NOT (${colAlias}.value ILIKE '%${filter.value}%')`;
-    case "is_empty":
-      return `${colAlias}.value IS NULL OR ${colAlias}.value = ''`;
-    case "is_not_empty":
-      return `${colAlias}.value IS NOT NULL AND ${colAlias}.value <> ''`;
+        return `${colAlias}.value ILIKE '%${filter.value}%'`
+    case "not contains":
+        return `NOT (${colAlias}.value ILIKE '%${filter.value}%')`
+    case "is empty":
+        return `${colAlias}.value = ''`
+    case "is not empty":
+        return `${colAlias}.value <> ''`
+    case "gt":
+        return `(${colAlias}.value)::numeric > ${filter.value}`
+    case "lt":
+        return `(${colAlias}.value)::numeric < ${filter.value}`
     default:
-      throw new Error("Unknown operator");
+        return "TRUE";
   }
+}
+
+function groupToSql(group: FilterGroupInput, joins: string[], depth = 0): string {
+    if (group.conditions.length === 0) {
+        return "TRUE"
+    }
+
+    const parts = group.conditions.map((cond: FilterCondInput | FilterGroup, i) => {
+        if ("operator" in cond) {
+            const alias = `f${depth}_${i}`
+            joins.push(
+                `LEFT JOIN "Cell" ${alias} ON ${alias}."rowId" = r.id AND ${alias}."columnName" = '${cond.columnName}'`
+            )
+            return filterToSql(alias, cond)
+        } else {
+            return `(${groupToSql(cond, joins, depth + 1)})`
+        }
+    });
+
+    return parts.join(` ${group.combineWith} `)
 }
 
 export const tableRouter = createTRPCRouter({
@@ -122,14 +162,33 @@ export const tableRouter = createTRPCRouter({
             return table;
         }, {
             maxWait: 5000,
-            timeout: 20000,
+            timeout: 200000,
         })
     }),
 
+    // getTable: protectedProcedure
+    // .input(z.object({ id: z.string() }))
+    // .query(async ({ ctx, input }) => {
+    //     return ctx.db.table.findFirst({
+    //         where: { id: input.id },
+    //         include: {
+    //             columns: {
+    //                 orderBy: {order: "asc"}
+    //             },
+    //             rows: {
+    //                 orderBy: {order: "asc"},
+    //                 include: { cells: true },
+    //             },
+    //         },
+    //     })
+    // }),
+
     getTable: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({
+        id: z.string(),
+    }))
     .query(async ({ ctx, input }) => {
-        return ctx.db.table.findFirst({
+        const table = await ctx.db.table.findFirst({
             where: { id: input.id },
             include: {
                 columns: {
@@ -140,13 +199,62 @@ export const tableRouter = createTRPCRouter({
                     include: { cells: true },
                 },
             },
-        });
+        })
+
+        if (!table) return null
+
+        if (table.filtering === "") {
+            // no filters
+            return table
+        }
+
+        const joins: string[] = [];
+        const whereClause = groupToSql(JSON.parse(table.filtering), joins);
+
+        const sqlJoins = joins.join('\n')
+
+        const sql = `
+            SELECT r.id
+            FROM "Row" r
+            ${sqlJoins}
+            WHERE r."tableId" = '${input.id}'
+            AND (${whereClause})
+        `
+
+        const rows: { id: string }[] = await ctx.db.$queryRawUnsafe(sql)
+        const rowIds = rows.map(r => r.id)
+
+        return await ctx.db.table.findFirst({
+            where: { id: input.id },
+            include: {
+                columns: {
+                    orderBy: {order: "asc"}
+                },
+                rows: {
+                    where: { id: { in: rowIds } },
+                    orderBy: { order: "asc" },
+                    include: { cells: true }
+                }
+            }
+        })
     }),
+
+    updateTableFilter: protectedProcedure
+    .input(z.object({ id: z.string(), filters: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+        return ctx.db.table.update({
+            where: { id: input.id },
+            data: {
+                filtering: input.filters
+            }
+        })
+    }),
+
 
     sortTable: protectedProcedure
     .input(z.object({ 
         id: z.string(),
-        columns: z.array(z.object({ columnName: z.string(), order: z.enum(["ASC", "DESC"])})).min(1)
+        columns: z.array(z.object({ columnName: z.string(), columnType: z.enum(["TEXT", "NUMBER"]), order: z.enum(["ASC", "DESC"])})).min(1)
     }))
     .mutation(async ({ ctx, input }) => {
         return await ctx.db.$transaction(async (tx) => {
@@ -155,7 +263,13 @@ export const tableRouter = createTRPCRouter({
             .join("\n");
         
             const orderBy = input.columns
-                .map((col, i) => `c${i+1}.value ${col.order}`)
+                .map((col, i) => {
+                    if (col.columnType === "NUMBER") {
+                        return `(c${i+1}.value)::numeric ${col.order}`
+                    } else {
+                        return `LOWER(c${i+1}.value) ${col.order}`
+                    }
+                })
                 .join(", ");
 
             const sql = `
@@ -174,7 +288,7 @@ export const tableRouter = createTRPCRouter({
                 WHERE r.id = sorted.rowId
             `
 
-            await ctx.db.$executeRawUnsafe(sql)
+            await tx.$executeRawUnsafe(sql)
 
             await tx.table.updateMany({ 
                 where: { id: input.id },
@@ -207,7 +321,6 @@ export const tableRouter = createTRPCRouter({
         cells: z.array(z.object({ id: z.string().optional(), columnId: z.string(), type: z.string(), value: z.string(), rowId: z.string(), columnName: z.string() }))
     }))
     .mutation(async ({ ctx, input}) => {
-        //const rowCount = await ctx.db.row.count({ where: { tableId: input.id } });
         const row = await ctx.db.row.create({
             data: {
                 id: input.row.id,
@@ -251,30 +364,4 @@ export const tableRouter = createTRPCRouter({
             data: { value: input.value }
         })
     }),
-
-    getFilteredTable: protectedProcedure
-    .input(z.object({
-        id: z.string(),
-        filters: z.array(filterInput),
-    }))
-    .query(async ({ ctx, input }) => {
-        const joins = input.filters
-        .map((f, i) => 
-            `LEFT JOIN "Cell" f${i+1} ON f${i+1}."rowId" = r.id AND f${i+1}."columnName" = '${f.columnName}'`
-        ).join("\n");
-
-        const conditions = input.filters
-        .map((f, i) => f.combineWith + ' ' + filterToSql(`f${i+1}`, f))
-        .join(' ');
-
-        const sql = `
-            SELECT r.*
-            FROM "Row" r
-            ${joins}
-            WHERE r."tableId" = '${input.id}'
-            ${conditions}
-        `
-
-        return ctx.db.$queryRawUnsafe(sql)
-    })
 });

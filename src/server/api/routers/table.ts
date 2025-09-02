@@ -6,7 +6,7 @@ import {
 } from "~/server/api/trpc";
 
 const defaultColumns = ["Name", "Notes", "Number"]
-const DEFAULTROWS = 25
+const DEFAULTROWS = 15
 
 const filterCondInput = z.object({
   columnName: z.string(),

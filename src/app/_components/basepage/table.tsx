@@ -25,11 +25,6 @@ export function Table({ id }: { id: string }) {
     const [rows, setRows] = useState<string[]>([]) 
     const [sortRules, setSortRules] = useState<SortRule[]>([]);
     const [refreshCounter, setRefreshCounter] = useState(0);
-
-    let initFilter = initialFilter
-    if (table && table.filtering) {
-        initFilter = JSON.parse(table.filtering)
-    }
     const [filters, setFilters] = useState<FilterGroupInput>(initialFilter)
 
     function EditableCell({
@@ -112,20 +107,25 @@ export function Table({ id }: { id: string }) {
         }
     })
 
-    const initialSortLoaded = useRef(false)
+    const initialLoaded = useRef(false)
 
     useEffect(() => {
-        if (!table || initialSortLoaded.current) return;
+        if (!table || initialLoaded.current) return;
 
         if (table.sorting) {
             const initial: SortRule[] = JSON.parse(table.sorting) as SortRule[];
             setSortRules(initial);
         }
 
-        initialSortLoaded.current = true;
+        if (table.filtering) {
+            setFilters(JSON.parse(table.filtering));
+        }
+
+        initialLoaded.current = true;
     }, [table]);
 
     useEffect(() => {
+        if (!initialLoaded.current) return;
         updateTableFilter.mutate({ id, filters: JSON.stringify(filters) })
     }, [filters])
 
@@ -139,7 +139,7 @@ export function Table({ id }: { id: string }) {
     }
 
     useEffect(() => {
-        if (!initialSortLoaded.current) return;
+        if (!initialLoaded.current) return;
 
         sortRows()
     }, [sortRules]);

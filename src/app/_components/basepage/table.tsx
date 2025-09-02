@@ -254,7 +254,7 @@ export function Table({ id }: { id: string }) {
         getCoreRowModel: getCoreRowModel(),
     });
 
-    if (isLoading || isRefetching) return <div>Loading Table...</div>
+    if (isLoading) return <div>Loading Table...</div>
 
     return (
         <div>

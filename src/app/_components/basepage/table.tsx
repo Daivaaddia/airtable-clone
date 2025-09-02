@@ -5,8 +5,6 @@ import type { Row } from "@tanstack/react-table";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cell, Column, Table } from '@prisma/client'
 import { nanoid } from "nanoid";
-import TableSort from "../table/tableSort";
-import TableFilter, { initialFilter } from "../table/tableFilter";
 import type { FilterGroupInput } from "~/server/api/routers/table";
 
 type DataValue = { id: string, value: string, type: string }
@@ -17,15 +15,33 @@ export type SortRule = {
   order: "ASC" | "DESC"
 };
 
-export function Table({ id }: { id: string }) {
-    const { data: table, isLoading, isRefetching } = api.table.getTable.useQuery({ id });
+export function Table({ 
+    id,
+    cols,
+    setCols,
+    filters,
+    setFilters,
+    sortRules,
+    setSortRules,
+    search,
+    setSearch
+}: { 
+    id: string 
+    cols: Column[]
+    setCols: React.Dispatch<React.SetStateAction<Column[]>>
+    filters: FilterGroupInput,
+    setFilters: React.Dispatch<React.SetStateAction<FilterGroupInput>>
+    sortRules: SortRule[]
+    setSortRules: React.Dispatch<React.SetStateAction<SortRule[]>>
+    search: string
+    setSearch: React.Dispatch<React.SetStateAction<string>>
+}) {
     const [data, setData] = useState<Data[]>([])
-    const [cols, setCols] = useState<Column[]>([])
     // useState for row IDs to be used in col updates
     const [rows, setRows] = useState<string[]>([]) 
-    const [sortRules, setSortRules] = useState<SortRule[]>([]);
     const [refreshCounter, setRefreshCounter] = useState(0);
-    const [filters, setFilters] = useState<FilterGroupInput>(initialFilter)
+
+    const { data: table, isLoading, isRefetching } = api.table.getTable.useQuery({ id, search });
 
     function EditableCell({
         getValue,
@@ -208,7 +224,7 @@ export function Table({ id }: { id: string }) {
 
         const newId = nanoid()
 
-        const inputName = window.prompt("Enter column name", "Text")?.trim()
+        const inputName = window.prompt("Enter column name", "Text")
         if (!inputName) return
         
         const newCells: Cell[] = []
@@ -243,7 +259,7 @@ export function Table({ id }: { id: string }) {
             tableId: id
         }
 
-        setCols((prev) => [...prev, newCol])
+        setCols((prev: Column[]) => [...prev, newCol])
 
         createCol.mutate({ col: newCol, cells: newCells })
     }
@@ -258,12 +274,6 @@ export function Table({ id }: { id: string }) {
 
     return (
         <div>
-            <div className="flex flex-row justify-between">
-                <div className="text-lg">{table?.name}</div>
-                <TableFilter columns={cols} filters={filters} setFilters={setFilters}/>
-                <TableSort sortRules={sortRules} setSortRules={setSortRules} cols={cols}/>
-            </div>
-
             <table className="min-w-full border border-gray-400">
                 <thead>
                 {reactTable.getHeaderGroups().map((headerGroup) => (

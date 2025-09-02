@@ -1,8 +1,8 @@
 'use client'
 
 import { api } from "~/trpc/react";
-import { Table } from "../_components/basepage/table";
 import { use, useState } from "react";
+import TableContainer from "../_components/basepage/tableContainer";
 
 export default function BasePage({ params }: { params: Promise<{ slug: string }>}) {
     const  { slug } =  use(params)
@@ -43,15 +43,17 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
                 ))}
                 <button
                 className="hover:bg-gray-200 p-2 rounded-md cursor-pointer"
-                onClick={() =>
-                    createTable.mutate({ name: "New Table", baseId: base.id })
-                }
+                onClick={() => {
+                    const inputName = window.prompt("Enter column name", "New Table")
+                    if (!inputName) return
+                    createTable.mutate({ name: inputName, baseId: base.id })
+                }}
                 >
                     +
                 </button>
             </div>
 
-            {activeTable ? <Table id={activeTable} key={activeTable} /> : <p></p> }
+            {activeTable ? <TableContainer id={activeTable} key={activeTable} /> : <p></p> }
         </main>
     );
 }

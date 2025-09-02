@@ -6,7 +6,7 @@ import {
 } from "~/server/api/trpc";
 
 const defaultColumns = ["Name", "Notes", "Number"]
-const DEFAULTROWS = 15
+const DEFAULTROWS = 10000
 
 const filterCondInput = z.object({
   columnName: z.string(),
@@ -166,26 +166,32 @@ export const tableRouter = createTRPCRouter({
         })
     }),
 
-    // getTable: protectedProcedure
+    // searchTable: protectedProcedure
     // .input(z.object({ id: z.string() }))
     // .query(async ({ ctx, input }) => {
-    //     return ctx.db.table.findFirst({
+    //     return await ctx.db.table.findFirst({
     //         where: { id: input.id },
     //         include: {
-    //             columns: {
-    //                 orderBy: {order: "asc"}
-    //             },
+    //             columns: { orderBy: { order: "asc" } },
     //             rows: {
-    //                 orderBy: {order: "asc"},
+    //                 where: {
+    //                     cells: {
+    //                         some: {
+    //                             value: { contains: "Stacy" },
+    //                         },
+    //                     },
+    //                 },
+    //                 orderBy: { order: "asc" },
     //                 include: { cells: true },
     //             },
     //         },
-    //     })
+    //     });
     // }),
 
     getTable: protectedProcedure
     .input(z.object({
         id: z.string(),
+        search: z.string()
     }))
     .query(async ({ ctx, input }) => {
         const table = await ctx.db.table.findFirst({
@@ -195,6 +201,13 @@ export const tableRouter = createTRPCRouter({
                     orderBy: {order: "asc"}
                 },
                 rows: {
+                    where: {
+                        cells: {
+                            some: {
+                                value: { contains: input.search },
+                            },
+                        },
+                    },
                     orderBy: {order: "asc"},
                     include: { cells: true },
                 },
@@ -231,7 +244,14 @@ export const tableRouter = createTRPCRouter({
                     orderBy: {order: "asc"}
                 },
                 rows: {
-                    where: { id: { in: rowIds } },
+                    where: { 
+                        id: { in: rowIds } ,
+                        cells: {
+                            some: {
+                                value: { contains: input.search },
+                            },
+                        },
+                    },
                     orderBy: { order: "asc" },
                     include: { cells: true }
                 }

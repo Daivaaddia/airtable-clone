@@ -184,14 +184,16 @@ function ConditionGroup({
 export default function TableFilter({
     columns,
     filters,
-    setFilters
+    setFilters,
+    open,
+    setOpen
 }: {
     columns: Column[]
     filters: FilterGroupInput,
-    setFilters: (update: FilterGroupInput) => void
+    setFilters: (update: FilterGroupInput) => void,
+    open: boolean
+    setOpen: (a: boolean) => void
 }) {
-    const [open, setOpen] = useState<boolean>(false)
-
     const toggleOpen = () => {
         const isOpen = open
         setOpen(!isOpen)

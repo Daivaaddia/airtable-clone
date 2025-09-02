@@ -4,8 +4,19 @@ import { useState } from "react";
 import type { SortRule } from "../basepage/table";
 import type { Column } from "@prisma/client";
 
-export default function TableSort({ sortRules, setSortRules, cols }: { sortRules: SortRule[], setSortRules: (val: SortRule[]) => void, cols: Column[] }) {
-    const [open, setOpen] = useState<boolean>(false)
+export default function TableSort({ 
+    sortRules, 
+    setSortRules, 
+    cols,
+    open,
+    setOpen
+}: { 
+    sortRules: SortRule[]
+    setSortRules: (val: SortRule[]) => void,
+    cols: Column[]
+    open: boolean
+    setOpen: (a: boolean) => void
+}) {
     const [openDropdown, setOpenDropdown] = useState(false);
 
     const toggleOpen = () => {

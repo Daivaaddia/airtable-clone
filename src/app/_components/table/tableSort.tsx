@@ -45,7 +45,7 @@ export default function TableSort({ sortRules, setSortRules, cols }: { sortRules
                             <select
                             value={rule.columnName}
                             onChange={(e) => {
-                                const { name, type } = JSON.parse(e.target.value)
+                                const { name, type } = JSON.parse(e.target.value) as { name: string, type: "TEXT" | "NUMBER" }
                                 handleRuleChange(index, name, type, rule.order)
                             }}
                             className="border border-gray-800 rounded-md"
@@ -94,7 +94,7 @@ export default function TableSort({ sortRules, setSortRules, cols }: { sortRules
                     <select
                     onChange={(e) => {
                         if (e.target.value) {
-                            const { name, type } = JSON.parse(e.target.value)
+                            const { name, type } = JSON.parse(e.target.value) as { name: string, type: "TEXT" | "NUMBER" }
                             handleAddRule(name, type)
                         }
                     }}

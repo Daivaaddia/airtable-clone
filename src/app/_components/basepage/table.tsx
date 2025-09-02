@@ -118,7 +118,7 @@ export function Table({ id }: { id: string }) {
         }
 
         if (table.filtering) {
-            setFilters(JSON.parse(table.filtering));
+            setFilters(JSON.parse(table.filtering) as FilterGroupInput);
         }
 
         initialLoaded.current = true;

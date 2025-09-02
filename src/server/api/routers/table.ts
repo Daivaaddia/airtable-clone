@@ -209,7 +209,7 @@ export const tableRouter = createTRPCRouter({
         }
 
         const joins: string[] = [];
-        const whereClause = groupToSql(JSON.parse(table.filtering), joins);
+        const whereClause = groupToSql(JSON.parse(table.filtering) as FilterGroupInput, joins);
 
         const sqlJoins = joins.join('\n')
 

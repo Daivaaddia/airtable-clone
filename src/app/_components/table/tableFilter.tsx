@@ -8,6 +8,11 @@ export const initialFilter: FilterGroupInput = {
     conditions: [],
 }
 
+const initialFilterAlt: FilterGroupInput = {
+    combineWith: "OR",
+    conditions: [],
+}
+
 function ConditionRow({
     condition,
     onChange,
@@ -19,44 +24,70 @@ function ConditionRow({
     onDelete: () => void;
     columns: Column[];
 }) {
+    const [selectedType, setSelectedType] = useState<"TEXT" | "NUMBER">("TEXT") //TODO
     return (
         <div className="flex flex-row items-center gap-2">
             <select
             value={condition.columnName}
-            onChange={(e) => onChange({ ...condition, columnName: e.target.value })}
+            onChange={(e) => {
+                const type = e.target.selectedOptions[0]?.getAttribute("data-type") as "TEXT" | "NUMBER"
+                setSelectedType(type)
+                onChange({ ...condition, columnName: e.target.value })
+            }}
             className="border rounded px-2 py-1 cursor-pointer"
             >
             {columns.map((col) => (
-                <option key={col.name} value={col.name}>
+                <option key={col.name} value={col.name} data-type={col.type}>
                 {col.name}
                 </option>
             ))}
             </select>
         
-            <select
-            value={condition.operator}
-            onChange={(e) =>
-                onChange({ ...condition, operator: e.target.value as FilterCondInput["operator"] })
-            }
-            className="border rounded px-2 py-1 cursor-pointer"
-            >
-                <option value="is">is</option>
-                <option value="is not">is not</option>
-                <option value="contains">contains</option>
-                <option value="not contains">not contains</option>
-                <option value="is empty">is empty</option>
-                <option value="is not empty">is not empty</option>
-                <option value="gt">greater than</option>
-                <option value="lt">less than</option>
-            </select>
+            {selectedType === "TEXT" ? (
+                <select
+                value={condition.operator}
+                onChange={(e) =>
+                    onChange({ ...condition, operator: e.target.value as FilterCondInput["operator"] })
+                }
+                className="border rounded px-2 py-1 cursor-pointer"
+                >
+                    <option value="is">is</option>
+                    <option value="is not">is not</option>
+                    <option value="contains">contains</option>
+                    <option value="not contains">not contains</option>
+                    <option value="is empty">is empty</option>
+                    <option value="is not empty">is not empty</option>
+                </select>
+            ): (
+                <select
+                value={condition.operator}
+                onChange={(e) =>
+                    onChange({ ...condition, operator: e.target.value as FilterCondInput["operator"] })
+                }
+                className="border rounded px-2 py-1 cursor-pointer"
+                >
+                    <option value="gt">greater than</option>
+                    <option value="lt">less than</option>
+                </select>
+            )}
+            
         
             {!["is empty", "is not empty"].includes(condition.operator) ? (
-                <input
-                    type="text"
-                    value={condition.value ?? ""}
-                    onChange={(e) => onChange({ ...condition, value: e.target.value })}
-                    className="border rounded px-2 py-1 cursor-text"
-                />
+                selectedType === "TEXT" ? (
+                    <input
+                        type="text"
+                        value={condition.value ?? ""}
+                        onChange={(e) => onChange({ ...condition, value: e.target.value })}
+                        className="border rounded px-2 py-1 cursor-text"
+                    />
+                ): (
+                    <input
+                        type="number"
+                        value={condition.value ?? ""}
+                        onChange={(e) => onChange({ ...condition, value: e.target.value })}
+                        className="border rounded px-2 py-1 cursor-text"
+                    />
+                )
             ): (
                 <input
                     type="text"
@@ -200,7 +231,7 @@ export default function TableFilter({
     }
 
     const isInitial = useMemo(() => {
-        return JSON.stringify(filters) === JSON.stringify(initialFilter)
+        return JSON.stringify(filters) === JSON.stringify(initialFilter) || JSON.stringify(filters) === JSON.stringify(initialFilterAlt)
     }, [filters])
 
     return (

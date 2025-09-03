@@ -56,13 +56,13 @@ export default function TableSort({
                             <select
                             value={rule.columnName}
                             onChange={(e) => {
-                                const { name, type } = JSON.parse(e.target.value) as { name: string, type: "TEXT" | "NUMBER" }
-                                handleRuleChange(index, name, type, rule.order)
+                                const type = e.target.selectedOptions[0]?.getAttribute("data-type") as "TEXT" | "NUMBER"
+                                handleRuleChange(index, e.target.value, type, rule.order)
                             }}
                             className="border border-gray-800 rounded-md"
                             >
                                 {cols.map((col) => (
-                                    <option key={col.name} value={JSON.stringify({ name: col.name, type: col.type })}>{col.name}</option>
+                                    <option key={col.name} value={col.name} data-type={col.type}>{col.name}</option>
                                 ))}
                             </select>
 
@@ -105,8 +105,7 @@ export default function TableSort({
                     <select
                     onChange={(e) => {
                         if (e.target.value) {
-                            const { name, type } = JSON.parse(e.target.value) as { name: string, type: "TEXT" | "NUMBER" }
-                            handleAddRule(name, type)
+                            handleAddRule(e.target.value, e.target.selectedOptions[0]?.getAttribute("data-type") as "TEXT" | "NUMBER")
                         }
                     }}
                     className="cursor-pointer hover:bg-gray-200"
@@ -114,7 +113,7 @@ export default function TableSort({
                     >
                         <option value="" disabled>Select row</option>
                         {availableCols.map((col) => (
-                            <option key={col.name} value={JSON.stringify({ name: col.name, type: col.type })}>{col.name}</option>
+                            <option key={col.name} value={col.name} data-type={col.type}>{col.name}</option>
                         ))}
                     </select>
                 )}

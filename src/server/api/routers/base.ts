@@ -9,7 +9,7 @@ export const baseRouter = createTRPCRouter({
     getAll: protectedProcedure.query(async ({ ctx }) => {
         const bases = ctx.db.base.findMany({
             where: { createdById: ctx.session.user.id },
-            orderBy: { createdAt: "desc" },
+            orderBy: { lastOpened: "desc" },
         });
         
         return bases ?? [];
@@ -18,12 +18,24 @@ export const baseRouter = createTRPCRouter({
     getBase: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-        return ctx.db.base.findFirst({
+        return ctx.db.base.update({
             where: { id: input.id },
+            data: { lastOpened: new Date() },
             include: {
-                tables: true,
+                tables: {
+                    orderBy: { createdAt: "asc" }
+                }
             },
         });
+    }),
+
+    updateName: protectedProcedure
+    .input(z.object({ id: z.string(), name: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+        return ctx.db.base.update({
+            where: { id: input.id },
+            data: { name: input.name }
+        })
     }),
 
     create: protectedProcedure

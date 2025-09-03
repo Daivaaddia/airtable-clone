@@ -1,7 +1,7 @@
 'use client'
 
 import { api } from "~/trpc/react";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import TableContainer from "../_components/basepage/tableContainer";
 
 export default function BasePage({ params }: { params: Promise<{ slug: string }>}) {
@@ -16,7 +16,17 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
         },
     });
 
+    const updateName = api.base.updateName.useMutation()
+
     const [activeTable, setActiveTable] = useState<string>(tableId);
+
+    const [baseName, setBaseName] = useState<string>(base?.name ?? "")
+
+    useEffect(() => {
+        if (base?.name) {
+            setBaseName(base.name);
+        }
+    }, [base?.name]);
 
     if (isLoading) return <div>Loading...</div>
     if (!base) return <div>Something went wrong</div>;
@@ -24,7 +34,11 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
     return (
         <main>
             <div className="sticky top-0 flex flex-row justify-between items-center text-xl px-6 py-3.5 shadow-sm bg-white">
-                <span>{base.name}</span>
+                <input
+                    value={baseName}
+                    onChange={(e) => setBaseName(e.target.value)}
+                    onBlur={() => updateName.mutate({ id: slug, name: baseName })}
+                />
             </div>
 
             <div className="flex flex-row gap-3 px-6 py-3 border-b">
@@ -44,7 +58,7 @@ export default function BasePage({ params }: { params: Promise<{ slug: string }>
                 <button
                 className="hover:bg-gray-200 p-2 rounded-md cursor-pointer"
                 onClick={() => {
-                    const inputName = window.prompt("Enter column name", "New Table")
+                    const inputName = window.prompt("Enter table name", "New Table")
                     if (!inputName) return
                     createTable.mutate({ name: inputName, baseId: base.id })
                 }}

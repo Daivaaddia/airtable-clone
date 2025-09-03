@@ -37,6 +37,7 @@ const filterGroupInput: z.ZodType<FilterGroup> = z.lazy(() =>
     })
 );
 
+const noFilterStrings = ["{\"combineWith\":\"AND\",\"conditions\":[]}", "{\"combineWith\":\"OR\",\"conditions\":[]}"]
 
 export type FilterGroupInput = z.infer<typeof filterGroupInput>
 
@@ -166,28 +167,6 @@ export const tableRouter = createTRPCRouter({
         })
     }),
 
-    // searchTable: protectedProcedure
-    // .input(z.object({ id: z.string() }))
-    // .query(async ({ ctx, input }) => {
-    //     return await ctx.db.table.findFirst({
-    //         where: { id: input.id },
-    //         include: {
-    //             columns: { orderBy: { order: "asc" } },
-    //             rows: {
-    //                 where: {
-    //                     cells: {
-    //                         some: {
-    //                             value: { contains: "Stacy" },
-    //                         },
-    //                     },
-    //                 },
-    //                 orderBy: { order: "asc" },
-    //                 include: { cells: true },
-    //             },
-    //         },
-    //     });
-    // }),
-
     getTable: protectedProcedure
     .input(z.object({
         id: z.string(),
@@ -204,7 +183,7 @@ export const tableRouter = createTRPCRouter({
                     where: {
                         cells: {
                             some: {
-                                value: { contains: input.search },
+                                value: { contains: input.search, mode: "insensitive" },
                             },
                         },
                     },
@@ -216,7 +195,7 @@ export const tableRouter = createTRPCRouter({
 
         if (!table) return null
 
-        if (table.filtering === "") {
+        if (noFilterStrings.includes(table.filtering)) {
             // no filters
             return table
         }
@@ -248,7 +227,7 @@ export const tableRouter = createTRPCRouter({
                         id: { in: rowIds } ,
                         cells: {
                             some: {
-                                value: { contains: input.search },
+                                value: { contains: input.search, mode: "insensitive" },
                             },
                         },
                     },

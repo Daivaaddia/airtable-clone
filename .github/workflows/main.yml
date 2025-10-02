@@ -2,7 +2,7 @@ name: Run Scrapers
 
 on:
   schedule:
-    - cron: "56 * * * *"
+    - cron: "59 * * * *"
 
 jobs:
   scrape:

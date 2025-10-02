@@ -1,7 +1,6 @@
 name: Run Scrapers
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: "56 * * * *"
 
